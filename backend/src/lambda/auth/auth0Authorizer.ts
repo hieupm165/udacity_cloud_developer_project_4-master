@@ -9,7 +9,7 @@ import { getSigningKey } from '../../auth/utils'
 
 const logger = createLogger('auth')
 
-const jwksUrl = 'https://huaanhminh.us.auth0.com/.well-known/jwks.json'
+const jwksUrl = 'https://dev-oprsyzdqpplfitkt.us.auth0.com/.well-known/jwks.json'
 
 export const handler = async (
   event: APIGatewayTokenAuthorizerEvent
