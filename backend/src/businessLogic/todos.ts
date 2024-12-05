@@ -1,38 +1,65 @@
-import { v4 as uuid } from 'uuid';
-import { CreateTodoRequest } from '../requests/CreateTodoRequest'
-import { TodoItem } from '../models/TodoItem'
-import { UpdateTodoRequest } from '../requests/UpdateTodoRequest'
-import {
-  getTodosByUserId,
-  addTodoToDB,
-  updateTodoToDB,
-  deleteTodoFromDB,
-  generateUploadURLToS3
-} from '../dataLayer/todos'
+import * as uuid from 'uuid';
 
-export const getTodosForUser = async (userId: string) => {
-  return await getTodosByUserId(userId);
-};
+import { parseUserId } from '../auth/utils';
+import { TodosAccess } from '../dataLayer/todoAccess';
+import { AttachmentUtils } from '../helpers/attachmentUtils';
+import { TodoItem } from '../models/TodoItem';
+import { CreateTodoRequest } from '../requests/CreateTodoRequest';
+import { UpdateTodoRequest } from '../requests/UpdateTodoRequest';
+import { createLogger } from '../utils/logger';
 
-export const createTodo = async (newTodo: CreateTodoRequest, userId: string): Promise<TodoItem> => {
-  const todo: TodoItem = newTodo as TodoItem;
-  todo.userId = userId;
-  todo.todoId = uuid();
-  todo.createdAt = (new Date()).toLocaleString();
+const logger = createLogger('[Todos]');
 
-  await addTodoToDB(todo);
+const attachmentUtils = new AttachmentUtils();
+const todosAccess = new TodosAccess();
 
-  return todo;
-};
+// Get User todos
+export async function getUserTodos(token: string): Promise<TodoItem[]> {
+  logger.info('getUserTodos called');
 
-export const updateTodo = async (userId: string, todoId: string, todo: UpdateTodoRequest) => {
-  await updateTodoToDB(userId, todoId, todo);
-};
+  const userId = parseUserId(token);
 
-export const deleteTodo = async (userId: string, todoId: string) => {
-  await deleteTodoFromDB(userId, todoId);
-};
+  return todosAccess.getTodos(userId);
+}
 
-export const createAttachmentPresignedUrl = async (userId: string, todoId: string): Promise<string> => {
-  return await generateUploadURLToS3(userId, todoId);
-};
+// Create Todo
+export async function createTodo(userId: string, newTodo: CreateTodoRequest): Promise<TodoItem> {
+  logger.info('createTodo called');
+
+  const todoId = uuid.v4();
+  const createdAt = new Date().toISOString();
+  const s3AttachmentUrl = attachmentUtils.getAttachmentUrl(todoId);
+  const newItem = {
+    userId,
+    todoId,
+    createdAt,
+    done: false,
+    attachmentUrl: s3AttachmentUrl,
+    ...newTodo,
+  };
+
+  return await todosAccess.createTodoItem(newItem);
+}
+
+// Update Todo
+export async function updateTodo(userId: string, todoId: string, request: UpdateTodoRequest): Promise<void> {
+  logger.info('updateTodo called');
+
+  return await todosAccess.updateTodo(userId, todoId, request);
+}
+
+// Delete Todo
+export async function deleteTodo(userId: string, todoId: string): Promise<boolean> {
+  logger.info('deleteTodo called');
+
+  return await todosAccess.deleteTodo(userId, todoId);
+}
+
+// Upload Image
+export async function createAttachment(userId: string, todoId: string): Promise<string> {
+  logger.info('createAttachmentUrl called');
+
+  todosAccess.updateTodoAttachment(userId, todoId);
+
+  return attachmentUtils.getUploadUrl(todoId);
+}

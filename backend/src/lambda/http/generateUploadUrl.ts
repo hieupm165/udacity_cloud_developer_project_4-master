@@ -1,44 +1,30 @@
-import 'source-map-support/register'
+import 'source-map-support/register';
 
-import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda'
-import * as middy from 'middy'
-import { cors, httpErrorHandler } from 'middy/middlewares'
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 
-import { createAttachmentPresignedUrl } from '../../businessLogic/todos'
+import { createAttachment } from '../../businessLogic/todos';
+import { createLogger } from '../../utils/logger';
 import { getUserId } from '../utils';
-import {createLogger} from "../../utils/logger";
 
-const logger = createLogger('uploadFile');
+const logger = createLogger('[GenerateUploadUrl]');
 
-export const handler = middy(
-  async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-    const todoId = event.pathParameters.todoId
-    const userId = getUserId(event);
+export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  logger.info('Handle: ' + event);
 
-    try {
-      const presignedUrl = await createAttachmentPresignedUrl(userId, todoId);
+  const todoId = event.pathParameters.todoId;
+  const userId = getUserId(event);
+  const url = await createAttachment(userId, todoId);
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Credentials': true,
+  };
+  const data = {
+    uploadUrl: url,
+  };
 
-      return {
-        statusCode: 201,
-        body: JSON.stringify({
-          uploadUrl: presignedUrl,
-        })
-      }
-    }
-    catch (e) {
-      logger.error('Error creating presigned url', e);
-      return {
-        statusCode: 500,
-        body: 'Internal Server Error',
-      };
-    }
-  }
-)
-
-handler
-.use(httpErrorHandler())
-.use(
-  cors({
-    credentials: true
-  })
-)
+  return {
+    statusCode: 201,
+    headers,
+    body: JSON.stringify(data),
+  };
+}

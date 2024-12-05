@@ -1,39 +1,30 @@
-import 'source-map-support/register'
+import 'source-map-support/register';
 
-import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda'
-import * as middy from 'middy'
-import { cors, httpErrorHandler } from 'middy/middlewares'
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 
-import { getTodosForUser as getTodosForUser } from '../../businessLogic/todos'
-import { getUserId } from '../utils';
-import { createLogger } from '../../utils/logger'
+import { getUserTodos } from '../../businessLogic/todos';
+import { createLogger } from '../../utils/logger';
 
-const logger = createLogger('createTodo');
+const logger = createLogger('[GetTodo]');
 
-export const handler = middy(
-  async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-    const userId = getUserId(event);
-    console.log('log userId', userId);
-    try {
-      return {
-        statusCode: 200,
-        body: JSON.stringify({
-          items: await getTodosForUser(userId),
-        }),
-      };
-    }
-    catch (e) {
-      logger.error('Error getting todos', e);
-      return {
-        statusCode: 500,
-        body: 'Internal Server Error',
-      };
-    }
-  }
-)
+export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+  logger.info('Handle: ' + event);
 
-handler
-.use(httpErrorHandler())
-.use(cors({
-  credentials: true
-}));
+  const authorization = event.headers.Authorization;
+  const split = authorization.split(' ');
+  const jwtToken = split[1];
+  const result = await getUserTodos(jwtToken);
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Credentials': true,
+  };
+  const data = {
+    items: result,
+  };
+
+  return {
+    statusCode: 200,
+    headers,
+    body: JSON.stringify(data),
+  };
+}

@@ -5,20 +5,18 @@
   "properties": {
     "name": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "maxLength": 125,
+      "default": "Untitled"
     },
     "dueDate": {
       "type": "string",
-      "format": "date-time"
+      "pattern": "\\d{2,4}[-/\\.]\\d{1,2}[-/\\.]\\d{1,2}"
     },
     "done": {
       "type": "boolean"
     }
   },
-  "required": [
-    "name",
-    "dueDate",
-    "done"
-  ],
+  "required": ["name", "dueDate", "done"],
   "additionalProperties": false
 }
